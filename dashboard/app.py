@@ -724,10 +724,14 @@ def update_top_countries(n):
     return fig
 
 if __name__ == '__main__':
+    import os
+    
+    port = int(os.environ.get('PORT', 8050))
+    
     print("=" * 80)
     print("Iniciando Dashboard de Análisis...")
     print("=" * 80)
-    print("\nDashboard disponible en: http://localhost:8050")
+    print(f"\nDashboard disponible en: http://0.0.0.0:{port}")
     print("Presiona Ctrl+C para detener el servidor\n")
     
-    app.run(debug=False, port=8050, host='127.0.0.1')
+    app.run(debug=False, port=port, host='0.0.0.0')
