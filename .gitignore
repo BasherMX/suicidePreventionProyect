@@ -72,3 +72,6 @@ sample_data/
 
 # Dashboard cache
 dashboard/.cache/
+
+# Markdown docs folder (local notes/reports)
+markDown/

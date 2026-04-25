@@ -53,6 +53,17 @@ except Exception as e:
     print("Ejecuta las Fases 3 y 4 primero")
     exit(1)
 
+# Configuración del campo de ubicación para el mapa
+if 'iso3_code' in country_year.columns:
+    MAP_LOCATION_COL = 'iso3_code'
+    MAP_LOCATION_MODE = 'ISO-3'
+elif 'country_name' in country_year.columns:
+    MAP_LOCATION_COL = 'country_name'
+    MAP_LOCATION_MODE = 'country names'
+else:
+    print("[ERROR] No se encontró columna válida para mapa (iso3_code/country_name)")
+    exit(1)
+
 # Inicializar aplicación Dash
 app = dash.Dash(
     __name__,
@@ -96,12 +107,34 @@ app.layout = html.Div([
                         style={'marginBottom': '15px', 'fontSize': '2.5em', 'fontWeight': '700', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'gap': '20px', 'flexWrap': 'wrap'}),
                 
                 html.Div([
-                    html.Img(src='/assets/cimat_logo.png', style={'height': '60px', 'display': 'inline-block', 'marginRight': '30px'}),
-                    html.Img(src='/assets/image.png', style={'height': '60px', 'display': 'inline-block'})
+                    html.Div([
+                        html.Img(src='/assets/cimat_logo.png', style={'height': '52px', 'maxWidth': '90px', 'objectFit': 'contain'})
+                    ], style={
+                        'width': '82px',
+                        'height': '82px',
+                        'backgroundColor': '#ffffff',
+                        'borderRadius': '8px',
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'justifyContent': 'center',
+                        'boxShadow': '0 2px 8px rgba(0,0,0,0.18)'
+                    }),
+                    html.Div([
+                        html.Img(src='/assets/image.png', style={'height': '52px', 'maxWidth': '90px', 'objectFit': 'contain'})
+                    ], style={
+                        'width': '82px',
+                        'height': '82px',
+                        'backgroundColor': '#ffffff',
+                        'borderRadius': '8px',
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'justifyContent': 'center',
+                        'boxShadow': '0 2px 8px rgba(0,0,0,0.18)'
+                    })
                 ], style={'marginBottom': '15px', 'textAlign': 'center', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'gap': '20px'}),
                 
                 html.P("Análisis estadístico y visualización de tasas de suicidio a nivel mundial", 
-                       style={'color': 'rgba(255,255,255,0.85)', 'marginBottom': '0px', 'fontSize': '1.1em'})
+                       style={'color': 'rgba(255,255,255,0.85)', 'marginBottom': '0px', 'fontSize': '1.1em', 'textAlign': 'center'})
             ], style={'marginBottom': '15px'}),
             
             html.Hr(style={'borderColor': 'rgba(255,255,255,0.2)', 'marginTop': '15px', 'marginBottom': '15px'}),
@@ -125,7 +158,12 @@ app.layout = html.Div([
     # Contenido principal
     html.Div([
         # Tabs navegables
-        dcc.Tabs(id='tabs', value='tab-1', parent_className='custom-tabs', children=[
+        html.Details([
+            html.Summary([
+                html.I(className="fas fa-bars"),
+                " Menú"
+            ], className='mobile-menu-summary'),
+            dcc.Tabs(id='tabs', value='tab-1', parent_className='custom-tabs', children=[
             
             # PESTAÑA 1: Análisis Geográfico
             dcc.Tab(label=html.Span([html.I(className="fas fa-map"), " Análisis Geográfico"]), 
@@ -385,27 +423,22 @@ app.layout = html.Div([
                     ], style={'marginTop': '20px'})
                 ], style={'padding': '25px'})
             ])
-        ], style={
-            'borderBottom': f'3px solid {colors["primary"]}',
-            'marginBottom': '20px'
-        })
-    ], style={'maxWidth': '1400px', 'margin': '0 auto', 'padding': '0 15px'}),
+            ], style={
+                'borderBottom': f'3px solid {colors["primary"]}',
+                'marginBottom': '20px'
+            })
+        ], id='mobile-nav', className='mobile-nav', open=True),
+    ], style={'maxWidth': '1400px', 'margin': '0 auto', 'padding': '0 15px', 'flex': '1 0 auto', 'width': '100%'}),
     
     # Footer
     html.Footer([
         html.Div([
-            html.P([
-                "MAEC - 2026  |  ",
-                html.A("Integrantes del Equipo", 
-                       href="",
-                       id='footer-link',
-                       style={'color': colors['primary'], 'textDecoration': 'underline', 'cursor': 'pointer', 'fontWeight': '600'})
-            ], style={'textAlign': 'center', 'marginBottom': '0px', 'fontSize': '0.9em'})
+            html.P("MAEC - 2026", style={'textAlign': 'center', 'marginBottom': '0px', 'fontSize': '0.9em'})
         ], style={'maxWidth': '1400px', 'margin': '0 auto', 'padding': '20px 15px'})
     ], style={
         'backgroundColor': colors['surface'],
         'borderTop': f'2px solid {colors["border"]}',
-        'marginTop': '40px',
+        'marginTop': 'auto',
         'color': colors['text_light']
     })
     
@@ -414,19 +447,9 @@ app.layout = html.Div([
     'minHeight': '100vh',
     'fontFamily': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     'color': colors['text'],
-    'paddingBottom': '40px',
     'display': 'flex',
     'flexDirection': 'column'
 })
-
-# Callback para footer link
-@callback(
-    Output('tabs', 'value'),
-    Input('footer-link', 'n_clicks'),
-    prevent_initial_call=True
-)
-def navigate_to_team(n_clicks):
-    return 'tab-6'
 
 # Estilos CSS personalizados
 app.index_string = '''
@@ -450,47 +473,65 @@ app.index_string = '''
                 color: #666;
                 transition: all 0.3s ease;
                 display: flex;
-                alignItems: center;
+                align-items: center;
                 gap: 10px;
-                whiteSpace: nowrap;
+                white-space: nowrap;
             }
             
             .custom-tab:hover { 
                 color: #003d82;
-                backgroundColor: #f5f5f5;
+                background-color: #f5f5f5;
             }
             
             .custom-tab--selected { 
                 border-bottom-color: #003d82;
                 color: #003d82;
-                fontWeight: 700;
+                font-weight: 700;
             }
             
             .custom-tabs-container { 
                 display: flex;
-                overflowX: auto;
-                overflowY: hidden;
+                overflow-x: auto;
+                overflow-y: hidden;
+            }
+
+            .mobile-menu-summary {
+                display: none;
+                list-style: none;
+                cursor: pointer;
+                background: #003d82;
+                color: #fff;
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-weight: 600;
+                margin-bottom: 10px;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .mobile-menu-summary::-webkit-details-marker {
+                display: none;
             }
             
             h2 { 
-                marginBottom: 20px;
-                fontSize: 1.8em;
-                fontWeight: 700;
+                margin-bottom: 20px;
+                font-size: 1.8em;
+                font-weight: 700;
                 color: #003d82;
                 display: flex;
-                alignItems: center;
+                align-items: center;
                 gap: 12px;
             }
             
             h3 { 
-                fontSize: 1.3em;
-                fontWeight: 600;
+                font-size: 1.3em;
+                font-weight: 600;
                 color: #333;
-                marginTop: 20px;
+                margin-top: 20px;
             }
             
             h1 {
-                fontSize: 2.5em;
+                font-size: 2.5em;
             }
             
             /* Plotly colorbar adjustments for mobile */
@@ -499,31 +540,34 @@ app.index_string = '''
             }
             
             @media (max-width: 1024px) {
-                h1 { fontSize: 2em; }
-                h2 { fontSize: 1.5em; }
+                h1 { font-size: 2em; }
+                h2 { font-size: 1.5em; }
             }
             
             @media (max-width: 768px) {
                 h1 { 
-                    fontSize: 1.4em;
+                    font-size: 1.4em;
                     margin: 0 auto;
                     text-align: center;
                 }
-                h2 { fontSize: 1.4em; }
-                h3 { fontSize: 1.1em; }
+                h2 { font-size: 1.4em; }
+                h3 { font-size: 1.1em; }
                 .custom-tab { 
                     padding: 8px 12px; 
-                    fontSize: 0.8em; 
+                    font-size: 0.8em; 
                 }
                 .custom-tabs-container { 
-                    overflowX: scroll;
+                    overflow-x: scroll;
                     display: flex;
                     width: 100%;
-                    flexWrap: nowrap;
+                    flex-wrap: nowrap;
                 }
-                
-                /* Hide menu on mobile, show hamburger */
-                .navbar {
+
+                .mobile-menu-summary {
+                    display: inline-flex;
+                }
+
+                .mobile-nav:not([open]) .custom-tabs {
                     display: none;
                 }
                 
@@ -546,17 +590,17 @@ app.index_string = '''
             
             @media (max-width: 480px) {
                 h1 { 
-                    fontSize: 1.1em;
+                    font-size: 1.1em;
                     line-height: 1.2;
                 }
                 h2 { 
-                    fontSize: 1.2em;
+                    font-size: 1.2em;
                     gap: 8px;
                 }
-                h3 { fontSize: 1em; }
+                h3 { font-size: 1em; }
                 .custom-tab { 
                     padding: 6px 8px; 
-                    fontSize: 0.7em; 
+                    font-size: 0.7em; 
                     gap: 5px;
                 }
                 
@@ -588,9 +632,22 @@ app.index_string = '''
 def update_choropleth(selected_year):
     """Actualiza el mapa de calor con datos del año seleccionado"""
     data = country_year[country_year['year'] == selected_year]
+
+    if data.empty:
+        fig = go.Figure()
+        fig.update_layout(
+            title=f'Sin datos disponibles para {int(selected_year)}',
+            height=500,
+            margin=dict(l=40, r=40, t=60, b=40),
+            font=dict(family="'Inter', sans-serif")
+        )
+        return fig
+
+    hover_countries = data['country_name'] if 'country_name' in data.columns else data[MAP_LOCATION_COL]
     
     fig = go.Figure(data=go.Choropleth(
-        locations=data['iso3_code'],
+        locations=data[MAP_LOCATION_COL],
+        locationmode=MAP_LOCATION_MODE,
         z=data['suicide_rate_per_100k'],
         colorscale='Reds',
         marker_line_color='darkgray',
@@ -602,7 +659,7 @@ def update_choropleth(selected_year):
             x=1.02
         ),
         hovertemplate='<b>%{customdata}</b><br>Tasa: %{z:.1f}<extra></extra>',
-        customdata=data['country_name']
+        customdata=hover_countries
     ))
     
     fig.update_layout(
