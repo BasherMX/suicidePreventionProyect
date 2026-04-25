@@ -11,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import sqlite3
+from flask import request
 from pathlib import Path
 import warnings
 
@@ -157,13 +158,32 @@ app.layout = html.Div([
     
     # Contenido principal
     html.Div([
-        # Tabs navegables
-        html.Details([
-            html.Summary([
+        # Controles de navegación móvil
+        html.Div([
+            html.Button([
                 html.I(className="fas fa-bars"),
                 " Menú"
-            ], className='mobile-menu-summary'),
-            dcc.Tabs(id='tabs', value='tab-1', parent_className='custom-tabs', children=[
+            ], id='mobile-menu-button', className='mobile-menu-button', n_clicks=0),
+            html.Div([
+                dcc.Dropdown(
+                    id='mobile-tab-selector',
+                    options=[
+                        {'label': 'Análisis Geográfico', 'value': 'tab-1'},
+                        {'label': 'Tendencias Temporales', 'value': 'tab-2'},
+                        {'label': 'Comparación Regional', 'value': 'tab-3'},
+                        {'label': 'Países Principales', 'value': 'tab-4'},
+                        {'label': 'Insights y Análisis', 'value': 'tab-5'},
+                        {'label': 'Integrantes del Equipo', 'value': 'tab-6'}
+                    ],
+                    value='tab-1',
+                    clearable=False,
+                    searchable=False
+                )
+            ], id='mobile-menu-panel', className='mobile-menu-panel', style={'display': 'none'})
+        ], className='mobile-nav-controls'),
+
+        # Tabs navegables
+        dcc.Tabs(id='tabs', value='tab-1', parent_className='custom-tabs', children=[
             
             # PESTAÑA 1: Análisis Geográfico
             dcc.Tab(label=html.Span([html.I(className="fas fa-map"), " Análisis Geográfico"]), 
@@ -423,11 +443,10 @@ app.layout = html.Div([
                     ], style={'marginTop': '20px'})
                 ], style={'padding': '25px'})
             ])
-            ], style={
-                'borderBottom': f'3px solid {colors["primary"]}',
-                'marginBottom': '20px'
-            })
-        ], id='mobile-nav', className='mobile-nav', open=True),
+        ], style={
+            'borderBottom': f'3px solid {colors["primary"]}',
+            'marginBottom': '20px'
+        }),
     ], style={'maxWidth': '1400px', 'margin': '0 auto', 'padding': '0 15px', 'flex': '1 0 auto', 'width': '100%'}),
     
     # Footer
@@ -495,22 +514,24 @@ app.index_string = '''
                 overflow-y: hidden;
             }
 
-            .mobile-menu-summary {
+            .mobile-nav-controls {
                 display: none;
-                list-style: none;
+                margin-bottom: 12px;
+            }
+
+            .mobile-menu-button {
                 cursor: pointer;
                 background: #003d82;
                 color: #fff;
                 border-radius: 8px;
+                border: none;
                 padding: 10px 14px;
                 font-weight: 600;
-                margin-bottom: 10px;
-                align-items: center;
-                gap: 8px;
+                margin-bottom: 8px;
             }
 
-            .mobile-menu-summary::-webkit-details-marker {
-                display: none;
+            .mobile-menu-panel {
+                margin-bottom: 8px;
             }
             
             h2 { 
@@ -563,23 +584,19 @@ app.index_string = '''
                     flex-wrap: nowrap;
                 }
 
-                .mobile-menu-summary {
-                    display: inline-flex;
+                .mobile-nav-controls {
+                    display: block;
                 }
 
-                .mobile-nav:not([open]) .custom-tabs {
-                    display: none;
+                /* Esconder barra de tabs en mobile, mantener contenido */
+                .custom-tabs-container > .tab,
+                .custom-tabs-container > .tab--selected {
+                    display: none !important;
                 }
                 
                 /* Adjust graph dimensions */
                 .js-plotly-plot {
                     overflow-x: auto !important;
-                }
-                
-                /* Colorbar for choropleth - make horizontal on mobile */
-                .plotly .colorbar {
-                    width: 30px !important;
-                    height: auto;
                 }
                 
                 /* Reduce padding */
@@ -632,6 +649,8 @@ app.index_string = '''
 def update_choropleth(selected_year):
     """Actualiza el mapa de calor con datos del año seleccionado"""
     data = country_year[country_year['year'] == selected_year]
+    ua = request.headers.get('User-Agent', '').lower()
+    is_mobile = any(token in ua for token in ['mobile', 'android', 'iphone', 'ipad'])
 
     if data.empty:
         fig = go.Figure()
@@ -652,11 +671,21 @@ def update_choropleth(selected_year):
         colorscale='Reds',
         marker_line_color='darkgray',
         marker_line_width=0.5,
-        colorbar=dict(
-            title="Tasa/100k",
-            thickness=15,
-            len=0.7,
-            x=1.02
+        colorbar=(
+            dict(
+                title="Tasa/100k",
+                orientation='h',
+                thickness=12,
+                len=0.7,
+                x=0.5,
+                xanchor='center',
+                y=-0.24
+            ) if is_mobile else dict(
+                title="Tasa/100k",
+                thickness=15,
+                len=0.7,
+                x=1.02
+            )
         ),
         hovertemplate='<b>%{customdata}</b><br>Tasa: %{z:.1f}<extra></extra>',
         customdata=hover_countries
@@ -667,7 +696,7 @@ def update_choropleth(selected_year):
         height=700,
         geo=dict(showland=True, landcolor='rgb(243, 243, 243)'),
         font=dict(family="'Inter', sans-serif"),
-        margin=dict(l=0, r=60, t=40, b=0)
+        margin=dict(l=0, r=60 if not is_mobile else 0, t=40, b=80 if is_mobile else 0)
     )
     
     return fig
@@ -689,9 +718,15 @@ def update_trends(selected_countries):
                   labels={'suicide_rate_per_100k': 'Tasa por 100k', 'year': 'Año', 'country_name': 'País'},
                   color_discrete_sequence=px.colors.qualitative.Set2)
     
-    fig.update_layout(height=600, hovermode='x unified', font=dict(family="'Inter', sans-serif"))
+    fig.update_layout(
+        height=600,
+        hovermode='x unified',
+        font=dict(family="'Inter', sans-serif"),
+        legend=dict(orientation='h', y=1.12, x=0, title=''),
+        margin=dict(l=20, r=20, t=70, b=60)
+    )
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGray', title_text=None)
     
     return fig
 
@@ -707,25 +742,33 @@ def update_regional(_):
     fig1 = px.box(country_year, x='region', y='suicide_rate_per_100k',
                   color='region', 
                   title='Distribución de Tasas por Región',
-                  labels={'suicide_rate_per_100k': 'Tasa por 100k', 'region': 'Región'},
+                  labels={'suicide_rate_per_100k': '', 'region': ''},
                   color_discrete_sequence=px.colors.qualitative.Set3)
-    fig1.update_layout(height=500, showlegend=False, font=dict(family="'Inter', sans-serif"))
+    fig1.update_layout(
+        height=500,
+        showlegend=False,
+        font=dict(family="'Inter', sans-serif"),
+        margin=dict(l=20, r=20, t=60, b=40)
+    )
+    fig1.update_xaxes(title_text=None)
+    fig1.update_yaxes(title_text=None)
     
     # Bar chart
     fig2 = go.Figure(data=[go.Bar(
-        y=regional_stats['region'],
-        x=regional_stats['mean_rate'],
-        orientation='h',
+        x=regional_stats['region'],
+        y=regional_stats['mean_rate'],
         marker=dict(color=regional_stats['mean_rate'], colorscale='Reds'),
-        hovertemplate='%{y}<br>Tasa Promedio: %{x:.1f}<extra></extra>'
+        text=[f"{v:.1f}" for v in regional_stats['mean_rate']],
+        textposition='outside',
+        hovertemplate='%{x}<br>Tasa Promedio: %{y:.1f}<extra></extra>'
     )])
     fig2.update_layout(
         title='Tasa Promedio por Región',
-        xaxis_title='Tasa Promedio',
-        yaxis_title='Región',
+        xaxis_title=None,
+        yaxis_title=None,
         height=500,
         font=dict(family="'Inter', sans-serif"),
-        margin=dict(l=150, r=20, t=40, b=40)
+        margin=dict(l=20, r=20, t=60, b=70)
     )
     
     # Tabla regional
@@ -760,25 +803,57 @@ def update_top_countries(n):
     """Actualiza gráfico de países principales"""
     top_data = country_stats.dropna(subset=['avg_suicide_rate']).nlargest(n, 'avg_suicide_rate').sort_values('avg_suicide_rate')
     
-    fig = px.bar(top_data, y='country_name', x='avg_suicide_rate',
-                 orientation='h', 
+    fig = px.bar(top_data, x='country_name', y='avg_suicide_rate',
                  title=f'Top {n} Países por Tasa Promedio de Suicidio',
-                 labels={'avg_suicide_rate': 'Tasa Promedio por 100k', 'country_name': 'País'},
+                 labels={'avg_suicide_rate': '', 'country_name': ''},
                  color='avg_suicide_rate', 
-                 color_continuous_scale='Reds')
+                 color_continuous_scale='Reds',
+                 text='avg_suicide_rate')
     
     fig.update_layout(
-        height=max(500, 250 + (n * 15)),
-        yaxis={'categoryorder': 'total ascending'},
+        height=max(520, 300 + (n * 8)),
+        xaxis={'categoryorder': 'total descending'},
         font=dict(family="'Inter', sans-serif"),
-        margin=dict(l=180, r=40, t=40, b=40),
+        margin=dict(l=20, r=20, t=60, b=120),
         coloraxis_colorbar=dict(
             thickness=15,
             len=0.7
         )
     )
+    fig.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+    fig.update_xaxes(tickangle=-35, title_text=None)
+    fig.update_yaxes(title_text=None)
     
     return fig
+
+
+@callback(
+    Output('mobile-menu-panel', 'style'),
+    Input('mobile-menu-button', 'n_clicks'),
+    Input('tabs', 'value'),
+    prevent_initial_call=True
+)
+def toggle_mobile_menu(n_clicks, _tab):
+    if n_clicks is None or n_clicks % 2 == 0:
+        return {'display': 'none'}
+    return {'display': 'block'}
+
+
+@callback(
+    Output('tabs', 'value'),
+    Input('mobile-tab-selector', 'value'),
+    prevent_initial_call=True
+)
+def update_tab_from_mobile_selector(selected_tab):
+    return selected_tab
+
+
+@callback(
+    Output('mobile-tab-selector', 'value'),
+    Input('tabs', 'value')
+)
+def sync_mobile_selector(active_tab):
+    return active_tab
 
 if __name__ == '__main__':
     import os
