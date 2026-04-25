@@ -725,6 +725,26 @@ def update_top_countries(n):
 
 if __name__ == '__main__':
     import os
+    import threading
+    import time
+    
+    # Start keep-alive daemon in production
+    def keep_alive():
+        """Periodic ping to prevent instance from spinning down (Render free tier)"""
+        import requests
+        app_url = os.environ.get('APP_URL', 'http://localhost:8050')
+        while True:
+            try:
+                time.sleep(30)  # Ping every 30 seconds
+                requests.get(f'{app_url}/', timeout=5)
+            except Exception:
+                pass  # Silently fail if offline
+    
+    # Start keep-alive thread only in production (Render)
+    if os.environ.get('RENDER'):
+        daemon = threading.Thread(target=keep_alive, daemon=True)
+        daemon.start()
+        print("[KEEP-ALIVE] Daemon started (Render environment detected)")
     
     port = int(os.environ.get('PORT', 8050))
     
